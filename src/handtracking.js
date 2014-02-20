@@ -103,6 +103,56 @@ HT.Tracker.prototype.blackBorder = function(image){
   return image;
 };
 
+HT.Tracker.prototype.findFingers = function (contour, gravity) {
+    var d = [];
+    var res = 200;
+    var gx = gravity.x, gy = gravity.y;
+    var len = contour.length  , maxd = 0;
+
+    for (var i = 0; i < len ; ++i) {
+        var pt = contour[i];
+        var dx = pt.x - gx;
+        var dy = pt.y - gy;
+        var dl = Math.sqrt(dx * dx + dy * dy);
+        var deg = Math.acos(dy / dl);
+        if (dx < 0) deg = -deg;
+        var index = ~~((deg / Math.PI / 2 + 0.5) * res);
+        d[index] = Math.max(dl, 0, d[index]);
+        maxd = Math.max(dl, maxd);
+    }
+    var flag = false;
+    var max, maxi;
+    var result = [];
+    for (var i = 0; i < res ; ++i) {
+        if (d[index]) {
+            if (d[index] / maxd > 0.5) {
+                if (flag == false) {
+                    flag = true;
+                    max = d[index];
+                    maxi = index;
+                }
+                else {
+                    if (max < d[index]) {
+                        max = d[index];
+                        maxi = index;
+                    }
+                }
+            }
+            else {
+                if (flag) {
+                    flag = false;
+                    result.push(index / res);
+                }
+            }
+        }
+    }
+    if (flag) {
+        flag = false;
+        result.push(index / res);
+    }
+    return result;
+}
+
 HT.Candidate = function(contour){
   this.contour = contour;
   this.hull = CV.convexHull(contour);
@@ -121,7 +171,7 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   var width = imageSrc.width;
   for(; i < len; i += 4){
     v = src[i];
-    /*r = src[i];
+    r = src[i];
     g = src[i + 1];
     b = src[i + 2];
   
@@ -142,7 +192,7 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
         h += 360;
       }
     }
-    */
+    
     value = 0;
 
     if (v >= 100){
