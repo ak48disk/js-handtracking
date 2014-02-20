@@ -167,3 +167,24 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   };
   return imageDst;
 };
+
+HT.Skinner.prototype.maskObjectDetect = function (image) {
+    var data = image.data, width = src.width, height = src.height;
+    var ok = [];
+    objectdetect.equalizeHistogram(data);
+    var sat = objectdetect.computeSat(gray, width, height);
+    var ssat = objectdetect.computeSquaredSat(gray, width, height);
+    var rsat = objectdetect.computeRsat(gray, width, height);
+    var rects = objectdetect.detectMultiScale(sat, rsat, ssat, undefined, width, height, objectdetect.frontalface, 1.1 /*options.scaleFactor*/, 3 /*options.scaleMin*/);
+    rects = objectdetect.groupRectangles(rects, 1).sort(function (rect) { return rect[4]; });
+    if (rects && rects.length > 0) {
+        var rect = rects[0];
+        var imin = rect[0] + rect[1] * width;
+        var imax = rect[2] + rect[3] * width;
+        for (var i = 0; i < data.length; ++i) {
+            if (i < imin || i > imax)
+                data[i] = 0;
+        }
+    }
+    return image;
+}
