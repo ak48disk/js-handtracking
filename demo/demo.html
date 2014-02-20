@@ -1,6 +1,5 @@
-<html>
 
-<head>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Hand Tracking</title>
 
   <script type="text/javascript" src="libs/polyfill.js"></script> 
@@ -31,9 +30,9 @@
       this.image = this.context.createImageData(
         this.canvas.width * 0.2, this.canvas.height * 0.2);
       
-      navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+      navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
       if (navigator.getUserMedia){
-        navigator.getUserMedia({video: true},
+	      navigator.getUserMedia({video: {'mandatory': { 'depth': true}}},
           function(stream){ return that.videoReady(stream); },
           function(error){ return that.videoError(error); } );
       }
@@ -42,8 +41,6 @@
     DEMO.prototype.videoReady = function(stream){
       if (window.webkitURL) {
         this.video.src = window.webkitURL.createObjectURL(stream);
-      } else if (video.mozSrcObject !== undefined) {
-        this.video.mozSrcObject = stream;
       } else {
         this.video.src = stream;
       }
@@ -84,8 +81,9 @@
         if (this.cbxDefects.checked){
           this.drawDefects(candidate.defects, "blue");
         }
+	
+      	this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
       }
-      
       if (this.cbxSkin.checked){
         this.context.putImageData(
           this.createImage(this.tracker.mask, this.image), 
@@ -163,16 +161,16 @@
 
   <center>
     <div style="margin: 10px;"><strong>-= Hand Tracking =-</strong></div>
-    <video id="video" autoplay="true" style="display:none;"></video>
-    <canvas id="canvas" style="width:640px; height:480px;border:1px solid black;"></canvas>
+    <video id="video" autoplay="true" style="display:none;" src=""></video>
+    <canvas id="canvas" style="width:640px; height:480px;border:1px solid black;" width="640" height="480"></canvas>
     <div style="margin: 15px;">
-      <input id="cbxHull" type="checkbox" checked="checked">Convex Hull</input>
-      <input id="cbxDefects" type="checkbox">Convexity Defects</input>
-      <input id="cbxSkin" type="checkbox" checked="checked">Skin Detection</input>
+      <input id="cbxHull" type="checkbox" checked="checked">Convex Hull
+      <input id="cbxDefects" type="checkbox">Convexity Defects
+      <input id="cbxSkin" type="checkbox" checked="checked">Skin Detection
     </div>
     <div style="margin: 15px;"><strong>Powered by <a href="http://code.google.com/p/js-handtracking/" target="_blank">js-handtracking</a></strong></div>
   </center>
 
-</body>
 
-</html>
+
+</body></html>

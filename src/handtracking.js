@@ -35,7 +35,7 @@ HT.Tracker = function(params){
 HT.Tracker.prototype.detect = function(image){
   this.skinner.mask(image, this.mask);
   
-  if (this.params.fast){
+  if (this.params.fast || true){
     this.blackBorder(this.mask);
   }else{
     CV.erode(this.mask, this.eroded);
@@ -44,7 +44,10 @@ HT.Tracker.prototype.detect = function(image){
 
   this.contours = CV.findContours(this.mask);
 
-  return this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
+  var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
+  if (candidate)
+	  candidate.gravity = this.mask.gravity;
+  return candidate;
 };
 
 HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon){
@@ -113,13 +116,17 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   var src = imageSrc.data, dst = imageDst.data, len = src.length,
       i = 0, j = 0,
       r, g, b, h, s, v, value;
-
+  var gravity_x = 0, gravity_y = 0;
+  var pts = 0;
+  var width = imageSrc.width;
   for(; i < len; i += 4){
-    r = src[i];
+    v = src[i];
+    /*r = src[i];
     g = src[i + 1];
     b = src[i + 2];
   
     v = Math.max(r, g, b);
+    
     s = v === 0? 0: 255 * ( v - Math.min(r, g, b) ) / v;
     h = 0;
     
@@ -135,20 +142,28 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
         h += 360;
       }
     }
-    
+    */
     value = 0;
 
-    if (v >= 15 && v <= 250){
-      if (h >= 3 && h <= 33){
+    if (v >= 100){
         value = 255;
-      }
+	var x = j % width;
+	var y = j / width;
+	gravity_x += x;
+	gravity_y += y;
+	pts ++;
     }
     
     dst[j ++] = value;
   }
-  
+  gravity_x = gravity_x / pts;
+  gravity_y = gravity_y / pts;
+
   imageDst.width = imageSrc.width;
   imageDst.height = imageSrc.height;
-  
+  imageDst.gravity = {
+	  x : gravity_x,
+	  y : gravity_y
+  };
   return imageDst;
 };
