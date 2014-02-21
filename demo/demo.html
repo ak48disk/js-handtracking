@@ -7,10 +7,28 @@
   <script type="text/javascript" src="../src/handtracking.js"></script> 
 
   <script>
-  
-    var DEMO = function(){
+
+    var DEMO = function() {
+      this.fps = 0;
+      this.lastCalledTime = null;
     };
-    
+
+    DEMO.prototype.computeFPS = function() {
+      if (!this.lastCalledTime) {
+        this.lastCalledTime = new Date().getTime();
+        this.fps = 0.0;
+        return;
+      }
+      var delta = (new Date().getTime() - this.lastCalledTime) / 1000;
+      this.lastCalledTime = new Date().getTime();
+      if (delta == 0) {
+        // avoid overflow
+        return;
+      }
+      this.fps = (this.fps + 1 / delta) / 2;
+      document.getElementById("fps").innerHTML = this.fps;
+    }
+
     DEMO.prototype.start = function() {
       var that = this;
     
@@ -60,8 +78,9 @@
         image = this.snapshot();
         
         candidate = this.tracker.detect(image);
-        
+
         this.draw(candidate);
+        this.computeFPS();
       }
     };
     
@@ -168,6 +187,7 @@
       <input id="cbxDefects" type="checkbox">Convexity Defects
       <input id="cbxSkin" type="checkbox" checked="checked">Skin Detection
     </div>
+    <a>FPS: </a><a id="fps"></a>
     <div style="margin: 15px;"><strong>Powered by <a href="http://code.google.com/p/js-handtracking/" target="_blank">js-handtracking</a></strong></div>
   </center>
 
