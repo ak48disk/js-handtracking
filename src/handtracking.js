@@ -33,7 +33,7 @@ HT.Tracker = function(params){
 };
 
 HT.Tracker.prototype.detect = function(image){
-  this.skinner.mask(image, this.mask);
+  this.skinner.mask(image, this.mask, this.params.detectObject);
   
   if (this.params.fast || true){
     this.blackBorder(this.mask);
@@ -43,10 +43,12 @@ HT.Tracker.prototype.detect = function(image){
   }
 
   this.contours = CV.findContours(this.mask);
+
   var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
   if (candidate) {
 	  candidate.gravity = this.mask.gravity;
 	  candidate.fingers = this.fingers;
+	  candidate.rects = this.mask.rects;
   }
   return candidate;
 };
@@ -55,8 +57,10 @@ HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon){
   var contour, candidate;
   
   contour = this.findMaxArea(contours, minSize);
-  if (contour){
-    this.fingers = this.findFingers(contour, this.mask.gravity);
+  if (contour) {
+    if (this.params.fingers)
+      this.fingers = this.findFingers(contour, this.mask.gravity);
+
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
   
     candidate = new HT.Candidate(contour);
@@ -104,6 +108,7 @@ HT.Tracker.prototype.blackBorder = function(image){
   
   return image;
 };
+
 
 HT.Tracker.prototype.findFingers = function(contour, gravity) {
   var d = [];
@@ -173,7 +178,7 @@ HT.Candidate = function(contour){
 HT.Skinner = function(){
 };
 
-HT.Skinner.prototype.mask = function(imageSrc, imageDst){
+HT.Skinner.prototype.mask = function(imageSrc, imageDst, detectObjects){
   var src = imageSrc.data, dst = imageDst.data, len = src.length,
       i = 0, j = 0,
       r, g, b, h, s, v, value;
@@ -182,37 +187,15 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   var width = imageSrc.width;
   for(; i < len; i += 4){
     v = src[i];
-    r = src[i];
-    g = src[i + 1];
-    b = src[i + 2];
-  
-    v = Math.max(r, g, b);
-    
-    s = v === 0? 0: 255 * ( v - Math.min(r, g, b) ) / v;
-    h = 0;
-    
-    if (0 !== s){
-      if (v === r){
-        h = 30 * (g - b) / s;
-      }else if (v === g){
-        h = 60 + ( (b - r) / s);
-      }else{
-        h = 120 + ( (r - g) / s);
-      }
-      if (h < 0){
-        h += 360;
-      }
-    }
-    
     value = 0;
 
     if (v >= 100){
         value = 255;
-	var x = j % width;
-	var y = j / width;
-	gravity_x += x;
-	gravity_y += y;
-	pts ++;
+	      var x = j % width;
+	      var y = j / width;
+	      gravity_x += x;
+	      gravity_y += y;
+	      pts ++;
     }
     
     dst[j ++] = value;
@@ -225,6 +208,29 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   imageDst.gravity = {
 	  x : gravity_x,
 	  y : gravity_y
-  };
+	};
+  if (detectObjects)
+    imageDst.rects = this.maskObjectDetect(imageDst);
   return imageDst;
 };
+
+HT.Skinner.prototype.maskObjectDetect = function (image) {
+    var data = image.data, width = image.width, height = image.height;
+//    objectdetect.equalizeHistogram(data);
+    var sat = objectdetect.computeSat(data, width, height);
+    var ssat = objectdetect.computeSquaredSat(data, width, height);
+    var rsat = objectdetect.computeRsat(data, width, height);
+    var rects = objectdetect.detectMultiScale(sat, rsat, ssat, undefined, width, height, objectdetect.handopen, 1.1 /*options.scaleFactor*/, 3 /*options.scaleMin*/);
+    rects = objectdetect.groupRectangles(rects, 1).sort(function (rect) { return rect[2] * rects[3]; });
+
+    if (rects && rects.length > 0) {
+        var rect = rects[0];
+        var imin = rect[0] + rect[1] * width;
+        var imax = imin + rect[2] + rect[3] * width;
+        for (var i = 0; i < data.length; ++i) {
+            if (i < imin || i > imax)
+                data[i] = 0;
+        }
+    }
+    return rects;
+}

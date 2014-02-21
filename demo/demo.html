@@ -2,7 +2,9 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Hand Tracking</title>
 
-  <script type="text/javascript" src="libs/polyfill.js"></script> 
+  <script type="text/javascript" src="libs/polyfill.js"></script>
+  <script type="text/javascript" src="../obj/objectdetect.js"></script> 
+  <script type="text/javascript" src="../obj/objectdetect.handopen.js"></script> 
   <script type="text/javascript" src="../src/cv.js"></script> 
   <script type="text/javascript" src="../src/handtracking.js"></script> 
 
@@ -37,6 +39,8 @@
       this.cbxHull = document.getElementById("cbxHull");
       this.cbxDefects = document.getElementById("cbxDefects");
       this.cbxSkin = document.getElementById("cbxSkin");
+      this.cbxFinger = document.getElementById("cbxFinger");
+      this.cbxObject = document.getElementById("cbxObject");
 
       this.video = document.getElementById("video");
       this.canvas = document.getElementById("canvas");
@@ -69,14 +73,16 @@
     DEMO.prototype.videoError = function(error){
     };
 
-    DEMO.prototype.tick = function(){
+    DEMO.prototype.tick = function() {
       var that = this, image, candidate;
-    
-      requestAnimationFrame( function() { return that.tick(); } );
-      
-      if (this.video.readyState === this.video.HAVE_ENOUGH_DATA){
+
+      requestAnimationFrame(function() { return that.tick(); });
+
+      if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
         image = this.snapshot();
-        
+
+        this.tracker.params.fingers = this.cbxFinger.checked;
+        this.tracker.params.detectObject = this.cbxObject.checked;
         candidate = this.tracker.detect(image);
 
         this.draw(candidate);
@@ -90,34 +96,58 @@
       return this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
     };
 
-    DEMO.prototype.draw = function(candidate){
-      if (candidate){
-      
-        if (this.cbxHull.checked){
+    DEMO.prototype.draw = function(candidate) {
+      if (candidate) {
+
+        if (this.cbxHull.checked) {
           this.drawHull(candidate.hull, "red");
         }
-        
-        if (this.cbxDefects.checked){
+
+        if (this.cbxDefects.checked) {
           this.drawDefects(candidate.defects, "blue");
         }
-	
-      	this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
-	this.context.save();
-	this.context.strokeStyle = "rgb(255,255,255)";
-	var fingers = candidate.fingers;
-	this.context.beginPath();
-	this.context.moveTo(0,100);
-	for (var i = 0; i < fingers.length; ++i) {
-		if (fingers[i]) {
-			this.context.lineTo(i / fingers.length * 100, 100 - fingers[i] * 90);
-		}
-	}
-	this.context.stroke();
-	this.context.restore();
+
+        this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
+
+        var fingers = candidate.fingers;
+
+        if (this.cbxFinger.checked && fingers) {
+          this.context.save();
+          this.context.strokeStyle = "rgb(255,255,255)";
+
+          this.context.beginPath();
+          this.context.moveTo(0, 100);
+          for (var i = 0; i < fingers.length; ++i) {
+            if (fingers[i]) {
+              this.context.lineTo(i / fingers.length * 150, 100 - fingers[i] * 90);
+            }
+          }
+          this.context.stroke();
+          this.context.restore();
+        }
+        var rects = candidate.rects;
+
+        if (rects) {
+          var ctx = this.context;
+          ctx.save();
+          ctx.strokeStyle = "rgb(255,255,255)";
+          for (var i = 0; i < rects.length; ++i) {
+            var r = rects[i];
+            var x = r[0], y = r[1], w = r[2], h = r[3];
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + h);
+            ctx.lineTo(x + w, y + h);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+          }
+        }
+
       }
-      if (this.cbxSkin.checked){
+      if (this.cbxSkin.checked) {
         this.context.putImageData(
-          this.createImage(this.tracker.mask, this.image), 
+          this.createImage(this.tracker.mask, this.image),
           this.canvas.width - this.image.width,
           this.canvas.height - this.image.height);
       }
@@ -198,6 +228,8 @@
       <input id="cbxHull" type="checkbox" checked="checked">Convex Hull
       <input id="cbxDefects" type="checkbox">Convexity Defects
       <input id="cbxSkin" type="checkbox" checked="checked">Skin Detection
+      <input id="cbxFinger" type="checkbox" checked="checked">Finger Detection
+      <input id="cbxObject" type="checkbox">Object Detection
     </div>
     <a>FPS: </a><a id="fps"></a>
     <div style="margin: 15px;"><strong>Powered by <a href="http://code.google.com/p/js-handtracking/" target="_blank">js-handtracking</a></strong></div>
