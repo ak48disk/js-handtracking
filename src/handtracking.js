@@ -105,55 +105,63 @@ HT.Tracker.prototype.blackBorder = function(image){
   return image;
 };
 
-HT.Tracker.prototype.findFingers = function (contour, gravity) {
-    var d = [];
-    var res = 200;
-    var gx = gravity.x, gy = gravity.y;
-    var len = contour.length  , maxd = 0;
+HT.Tracker.prototype.findFingers = function(contour, gravity) {
+  var d = [];
+  var res = 200;
+  var gx = gravity.x, gy = gravity.y;
+  var len = contour.length, maxd = 0, mind = 10000;
 
-    for (var i = 0; i < len ; ++i) {
-        var pt = contour[i];
-        var dx = pt.x - gx;
-        var dy = pt.y - gy;
-        var dl = Math.sqrt(dx * dx + dy * dy);
-        var deg = Math.acos(dx / dl);
-        if (dy < 0) deg = -deg;
-        var index = ~~((deg / Math.PI / 2 + 0.5) * res);
-        d[index] = Math.max(dl, d[index] || 0);
-        maxd = Math.max(dl, maxd);
+  for (var i = 0; i < len; ++i) {
+    var pt = contour[i];
+    var dx = pt.x - gx;
+    var dy = pt.y - gy;
+    var dl = Math.sqrt(dx * dx + dy * dy);
+    var deg = Math.acos(dx / dl);
+    if (dy < 0) deg = -deg;
+    var index = ~ ~((deg / Math.PI / 2 + 0.5) * res);
+    d[index] = Math.max(dl, d[index] || 0);
+    maxd = Math.max(dl, maxd);
+    mind = Math.min(dl, mind);
+  }
+  var diff = maxd - mind;
+  for (var i = 0; i < res; ++i) {
+    if (d[i]) {
+      d[i] = (d[i] - mind) / diff;
     }
-    return d;
-    var flag = false;
-    var max, maxi;
-    var result = [];
-    for (var i = 0; i < res ; ++i) {
-        if (d[index]) {
-            if (d[index] / maxd > 0.3) {
-                if (flag == false) {
-                    flag = true;
-                    max = d[index];
-                    maxi = index;
-                }
-                else {
-                    if (max < d[index]) {
-                        max = d[index];
-                        maxi = index;
-                    }
-                }
-            }
-            else {
-                if (flag) {
-                    flag = false;
-                    result.push(index / res);
-                }
-            }
+  }
+  return d;
+
+  var flag = false;
+  var max, maxi;
+  var result = [];
+  for (var i = 0; i < res; ++i) {
+    if (d[index]) {
+      if (d[index] / maxd > 0.3) {
+        if (flag == false) {
+          flag = true;
+          max = d[index];
+          maxi = index;
         }
+        else {
+          if (max < d[index]) {
+            max = d[index];
+            maxi = index;
+          }
+        }
+      }
+      else {
+        if (flag) {
+          flag = false;
+          result.push(index / res);
+        }
+      }
     }
-    if (flag) {
-        flag = false;
-        result.push(index / res);
-    }
-    return result;
+  }
+  if (flag) {
+    flag = false;
+    result.push(index / res);
+  }
+  return result;
 }
 
 HT.Candidate = function(contour){
