@@ -43,10 +43,11 @@ HT.Tracker.prototype.detect = function(image){
   }
 
   this.contours = CV.findContours(this.mask);
-
   var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
-  if (candidate)
+  if (candidate) {
 	  candidate.gravity = this.mask.gravity;
+	  candidate.fingers = this.fingers;
+  }
   return candidate;
 };
 
@@ -55,6 +56,7 @@ HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon){
   
   contour = this.findMaxArea(contours, minSize);
   if (contour){
+    this.fingers = this.findFingers(contour, this.mask.gravity);
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
   
     candidate = new HT.Candidate(contour);
@@ -114,18 +116,19 @@ HT.Tracker.prototype.findFingers = function (contour, gravity) {
         var dx = pt.x - gx;
         var dy = pt.y - gy;
         var dl = Math.sqrt(dx * dx + dy * dy);
-        var deg = Math.acos(dy / dl);
-        if (dx < 0) deg = -deg;
+        var deg = Math.acos(dx / dl);
+        if (dy < 0) deg = -deg;
         var index = ~~((deg / Math.PI / 2 + 0.5) * res);
-        d[index] = Math.max(dl, 0, d[index]);
+        d[index] = Math.max(dl, d[index] || 0);
         maxd = Math.max(dl, maxd);
     }
+    return d;
     var flag = false;
     var max, maxi;
     var result = [];
     for (var i = 0; i < res ; ++i) {
         if (d[index]) {
-            if (d[index] / maxd > 0.5) {
+            if (d[index] / maxd > 0.3) {
                 if (flag == false) {
                     flag = true;
                     max = d[index];
