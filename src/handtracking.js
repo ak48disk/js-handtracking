@@ -45,8 +45,10 @@ HT.Tracker.prototype.detect = function(image){
   this.contours = CV.findContours(this.mask);
 
   var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
-  if (candidate)
+  if (candidate){
 	  candidate.gravity = this.mask.gravity;
+	  candidate.rects = this.mask.rects;
+  }
   return candidate;
 };
 
@@ -165,26 +167,27 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
 	  x : gravity_x,
 	  y : gravity_y
   };
+  imageDst.rects = this.maskObjectDetect(imageDst);
   return imageDst;
 };
 
 HT.Skinner.prototype.maskObjectDetect = function (image) {
-    var data = image.data, width = src.width, height = src.height;
-    var ok = [];
-    objectdetect.equalizeHistogram(data);
-    var sat = objectdetect.computeSat(gray, width, height);
-    var ssat = objectdetect.computeSquaredSat(gray, width, height);
-    var rsat = objectdetect.computeRsat(gray, width, height);
-    var rects = objectdetect.detectMultiScale(sat, rsat, ssat, undefined, width, height, objectdetect.frontalface, 1.1 /*options.scaleFactor*/, 3 /*options.scaleMin*/);
+    var data = image.data, width = image.width, height = image.height;
+//    objectdetect.equalizeHistogram(data);
+    var sat = objectdetect.computeSat(data, width, height);
+    var ssat = objectdetect.computeSquaredSat(data, width, height);
+    var rsat = objectdetect.computeRsat(data, width, height);
+    var rects = objectdetect.detectMultiScale(sat, rsat, ssat, undefined, width, height, objectdetect.handopen, 1.1 /*options.scaleFactor*/, 3 /*options.scaleMin*/);
     rects = objectdetect.groupRectangles(rects, 1).sort(function (rect) { return rect[4]; });
+//    return rects;
     if (rects && rects.length > 0) {
         var rect = rects[0];
         var imin = rect[0] + rect[1] * width;
-        var imax = rect[2] + rect[3] * width;
+        var imax = imin + rect[2] + rect[3] * width;
         for (var i = 0; i < data.length; ++i) {
             if (i < imin || i > imax)
                 data[i] = 0;
         }
     }
-    return image;
+    return rects;
 }

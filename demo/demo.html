@@ -2,7 +2,9 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Hand Tracking</title>
 
-  <script type="text/javascript" src="libs/polyfill.js"></script> 
+  <script type="text/javascript" src="libs/polyfill.js"></script>
+  <script type="text/javascript" src="../obj/objectdetect.js"></script> 
+  <script type="text/javascript" src="../obj/objectdetect.handopen.js"></script> 
   <script type="text/javascript" src="../src/cv.js"></script> 
   <script type="text/javascript" src="../src/handtracking.js"></script> 
 
@@ -83,6 +85,25 @@
         }
 	
       	this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
+	var rects = candidate.rects;
+	
+	if (rects){
+		var ctx = this.context;
+		ctx.save();
+		ctx.strokeStyle = "rgb(255,255,255)";
+		for (var i = 0; i< rects.length; ++i) {
+			var r = rects[i];
+			var x = r[0], y = r[1], w = r[2], h = r[3];
+			ctx.beginPath();
+			ctx.moveTo(x,y);
+			ctx.lineTo(x,y+h);
+			ctx.lineTo(x+w,y+h);
+			ctx.lineTo(x+w,y);
+			ctx.lineTo(x,y);
+			ctx.stroke();
+		}
+
+	}
       }
       if (this.cbxSkin.checked){
         this.context.putImageData(
