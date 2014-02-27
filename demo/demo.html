@@ -109,20 +109,25 @@
 
         this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
 
-        var fingers = candidate.fingers;
+        var fingerGraph = candidate.fingerGraph;
+        var fingers = candidate.fingers; ;
 
-        if (this.cbxFinger.checked && fingers) {
+        if (this.cbxFinger.checked && fingerGraph) {
           this.context.save();
           this.context.strokeStyle = "rgb(255,255,255)";
 
           this.context.beginPath();
           this.context.moveTo(0, 100);
-          for (var i = 0; i < fingers.length; ++i) {
-            if (fingers[i]) {
-              this.context.lineTo(i / fingers.length * 150, 100 - fingers[i] * 90);
+          for (var i = 0; i < fingerGraph.length; ++i) {
+            if (fingerGraph[i]) {
+              this.context.lineTo(i / fingerGraph.length * 150, 100 - fingerGraph[i].value * 90);
             }
           }
           this.context.stroke();
+          this.context.fillStyle = "rgb(255,0,0)";
+          for (var i = 0; i < fingers.length; ++i) {
+            this.context.fillText("p", fingers[i].x, fingers[i].y);
+          }
           this.context.restore();
         }
         var rects = candidate.rects;

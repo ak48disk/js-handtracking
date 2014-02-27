@@ -47,25 +47,28 @@ HT.Tracker.prototype.detect = function(image){
   var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
   if (candidate) {
 	  candidate.gravity = this.mask.gravity;
+	  candidate.fingerGraph = this.fingerGraph;
 	  candidate.fingers = this.fingers;
 	  candidate.rects = this.mask.rects;
   }
   return candidate;
 };
 
-HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon){
+HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon) {
   var contour, candidate;
-  
+
   contour = this.findMaxArea(contours, minSize);
   if (contour) {
-    if (this.params.fingers)
-      this.fingers = this.findFingers(contour, this.mask.gravity);
+    if (this.params.fingers) {
+      this.fingerGraph = this.findFingerGraph(contour, this.mask.gravity);
+      this.fingers = this.findFingers(this.fingerGraph);
+    }
 
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
-  
+
     candidate = new HT.Candidate(contour);
   }
-  
+
   return candidate;
 };
 
@@ -110,9 +113,9 @@ HT.Tracker.prototype.blackBorder = function(image){
 };
 
 
-HT.Tracker.prototype.findFingers = function(contour, gravity) {
+HT.Tracker.prototype.findFingerGraph = function(contour, gravity) {
   var d = [];
-  var res = 200;
+  var res = 500;
   var gx = gravity.x, gy = gravity.y;
   var len = contour.length, maxd = 0, mind = 10000;
 
@@ -124,49 +127,64 @@ HT.Tracker.prototype.findFingers = function(contour, gravity) {
     var deg = Math.acos(dx / dl);
     if (dy < 0) deg = -deg;
     var index = ~ ~((deg / Math.PI / 2 + 0.5) * res);
-    d[index] = Math.max(dl, d[index] || 0);
+    if (!d[index] || d[index].value < dl) {
+      d[index] = { value: dl, pt: pt };
+    } 
     maxd = Math.max(dl, maxd);
     mind = Math.min(dl, mind);
   }
   var diff = maxd - mind;
   for (var i = 0; i < res; ++i) {
     if (d[i]) {
-      d[i] = (d[i] - mind) / diff;
+      d[i].value = (d[i].value - mind) / diff;
     }
   }
   return d;
+}
 
-  var flag = false;
+HT.Tracker.prototype.findFingers = function(fingerGraph, threshold) {
+  threshold = threshold || 0.6;
+  var flag = 0;
+  var pts = 0;
   var max, maxi;
   var result = [];
-  for (var i = 0; i < res; ++i) {
-    if (d[index]) {
-      if (d[index] / maxd > 0.3) {
+  var d = fingerGraph;
+  for (var i = 0; i < fingerGraph.length; ++i) {
+    if (d[i]) {
+      if (d[i].value > threshold) {
         if (flag == false) {
           flag = true;
-          max = d[index];
-          maxi = index;
+          max = d[i].value;
+          maxi = i;
         }
         else {
-          if (max < d[index]) {
-            max = d[index];
-            maxi = index;
+          if (max < d[i].value) {
+            max = d[i].value;
+            maxi = i;
           }
         }
       }
       else {
         if (flag) {
           flag = false;
-          result.push(index / res);
+          result.push({
+            x: d[maxi].pt.x,
+            y: d[maxi].pt.y,
+            l: d[maxi].value
+          });
         }
       }
     }
   }
   if (flag) {
     flag = false;
-    result.push(index / res);
+    result.push({
+      x: d[maxi].pt.x,
+      y: d[maxi].pt.y,
+      l: d[maxi].value
+    });
   }
-  return result;
+  return result.sort(function(a, b) { return b.l-a.l; });
 }
 
 HT.Candidate = function(contour){
