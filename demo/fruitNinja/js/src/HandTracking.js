@@ -2,10 +2,6 @@
 
 var listeners = {};
 HandTracking = function(canvas_width, canvas_height) {
-  var shadowRawCanvas = document.getElementById("shadow_raw");
-  var shadowRawContext = shadowRawCanvas.getContext("2d");
-  var shadowCanvas = document.getElementById("shadow");
-  var shadowContext = shadowCanvas.getContext("2d");
   var rendered_images = 0;
   var posted_images = 0;
   var video = document.getElementById("depth");
@@ -38,8 +34,15 @@ HandTracking = function(canvas_width, canvas_height) {
 
   this.snapshot = function() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    return context.getImageData(0, 0, canvas.width, canvas.height);
+    var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    if (GameControl.displayShadow) {
+      topContext.save();
+      topContext.globalAlpha = 0.3;
+      topContext.setTransform(-1, 0, 0, 1, gameWidth, 0);
+      topContext.drawImage(video, 0, 0, gameWidth, gameHeight);
+      topContext.restore();
+    }
+    return imageData;
   };
 
   this.addEventListener = function(type, listener) {

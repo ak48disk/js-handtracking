@@ -123,7 +123,7 @@ function throwObject()
 }
 function isThrowBomb()
 {
-	var n=Math.random();
+	var n=Math.random() * 2;
 	if(n<gameLevel)return true;
 	return false;
 };
@@ -185,10 +185,11 @@ function handmove(e) {
 function render() 
 {
 	requestAnimationFrame(render);
-  handtracking.tick();
+  
 	topContext.clearRect(0,0,gameWidth,gameHeight);
 	middleContext.clearRect(0,0,gameWidth,gameHeight);
 	bottomContext.clearRect(0,0,gameWidth,gameHeight);
+  handtracking.tick();
 
 	showScoreTextUI();
 	fruitSystem.render();
