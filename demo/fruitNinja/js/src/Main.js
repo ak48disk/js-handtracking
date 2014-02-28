@@ -207,22 +207,20 @@ function render()
 var GameControl = {
   message: 'Game Control',
   moveThreshold: 5,
-  depthRatio: 0.2,
   displayShadow: true,
-  displayShadowFPS: 20,
 };
 
 function initControl() {
   var gui = new dat.GUI();
   gui.add(GameControl, 'message');
   gui.add(GameControl, 'moveThreshold', 0, 10).step(1.0);
-  gui.add(GameControl, 'depthRatio', 0.0, 1.0).step(0.2).onChange(function(value) {
-  	var shadowRawCanvas = document.getElementById("shadow_raw");
-  	shadowRawCanvas.width = gameWidth * value;
-	shadowRawCanvas.height = gameHeight * value;
-  });;
-  gui.add(GameControl, 'displayShadow');
-  gui.add(GameControl, 'displayShadowFPS', 5, 30).step(1.0);
+  gui.add(GameControl, 'displayShadow').onChange(function(value) {
+    var shadowCanvas = document.getElementById("shadow");
+    if (value)
+       shadowCanvas.style.display="block";
+    else
+       shadowCanvas.style.display="none";
+  });
   gui.close();
 };
 

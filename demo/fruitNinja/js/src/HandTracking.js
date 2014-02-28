@@ -2,19 +2,23 @@
 
 var listeners = {};
 HandTracking = function(canvas_width, canvas_height) {
-  var rendered_images = 0;
-  var posted_images = 0;
   var video = document.getElementById("depth");
 
   this.tracker = new HT.Tracker();
   var canvas = document.getElementById("canvas");
   var context = canvas.getContext("2d");
 
+  var shadowCanvas = document.getElementById("shadow");
+
   navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
   if (navigator.getUserMedia) {
     navigator.getUserMedia({ video: { 'mandatory': { 'depth': true}} },
           function(stream) {
             video.src = window.webkitURL.createObjectURL(stream);
+            shadowCanvas.style.display="block";
+            shadowCanvas.width=gameWidth;
+            shadowCanvas.height=gameHeight;
+            ShadowRenderer(video, shadowCanvas);
           },
           function(error) { console.log(error); });
   }
@@ -35,13 +39,6 @@ HandTracking = function(canvas_width, canvas_height) {
   this.snapshot = function() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    if (GameControl.displayShadow) {
-      topContext.save();
-      topContext.globalAlpha = 0.3;
-      topContext.setTransform(-1, 0, 0, 1, gameWidth, 0);
-      topContext.drawImage(video, 0, 0, gameWidth, gameHeight);
-      topContext.restore();
-    }
     return imageData;
   };
 
