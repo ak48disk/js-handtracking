@@ -207,13 +207,18 @@ function render()
 var GameControl = {
   message: 'Game Control',
   moveThreshold: 5,
+  depthThreshold: 100,
   displayShadow: true,
+  mirror: true,
 };
 
 function initControl() {
   var gui = new dat.GUI();
   gui.add(GameControl, 'message');
   gui.add(GameControl, 'moveThreshold', 0, 10).step(1.0);
+  gui.add(GameControl, 'depthThreshold', 10, 255).step(1.0).onChange(function(value) {
+    handtracking.tracker.params.depthThreshold = value;
+  });
   gui.add(GameControl, 'displayShadow').onChange(function(value) {
     var shadowCanvas = document.getElementById("shadow");
     if (value)
@@ -221,6 +226,7 @@ function initControl() {
     else
        shadowCanvas.style.display="none";
   });
+  gui.add(GameControl, 'mirror');
   gui.close();
 };
 

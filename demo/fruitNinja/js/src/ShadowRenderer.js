@@ -23,11 +23,13 @@ function ShadowRenderer(video, canvas) {
         heightLocation = gl.getUniformLocation(program, 'height'),
         samplerLocation = gl.getUniformLocation(program, 'sampler0'),
         positionLocation = gl.getAttribLocation(program, 'position'),
+        mirrorLocation = gl.getUniformLocation(program, 'mirror'),
         buffer = gl.createBuffer(),
         vertices = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1],
         //vertices = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,  1.0, 1.0, 0.0, 1.0,  1.0],
         texture = gl.createTexture();
 
+    gl.uniform1f(mirrorLocation, GameControl.mirror ? 1.0 : 0.0);
     //set uniform size data
     gl.uniform1f(widthLocation, canvas.width);
     gl.uniform1f(heightLocation, canvas.height);
@@ -50,6 +52,7 @@ function ShadowRenderer(video, canvas) {
     gl.bindTexture(gl.TEXTURE_2D, null);
 
     window.requestAnimationFrame(function loop() {
+      gl.uniform1f(mirrorLocation, GameControl.mirror ? 1.0 : 0.0);
       //set uniform size data
       //canvas.width = video.offsetWidth;
       //canvas.height = video.offsetHeight;

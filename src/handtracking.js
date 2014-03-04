@@ -193,7 +193,8 @@ HT.Candidate = function(contour){
   this.defects = CV.convexityDefects(contour, this.hull);
 };
 
-HT.Skinner = function(){
+HT.Skinner = function(params){
+  this.params = params || {depthThreshold: 100};
 };
 
 HT.Skinner.prototype.mask = function(imageSrc, imageDst, detectObjects){
@@ -207,7 +208,7 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst, detectObjects){
     v = src[i];
     value = 0;
 
-    if (v >= 100){
+    if (v >= this.params.depthThreshold){
         value = 255;
 	      var x = j % width;
 	      var y = j / width;
