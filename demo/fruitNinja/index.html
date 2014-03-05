@@ -82,6 +82,7 @@ video{
 <script src="js/libs/spp.min.js"></script>
 <script src="js/libs/dat.gui.min.js"></script>
 <script src="js/libs/Stats.js"></script>
+<script src="js/libs/utils.js"></script>
 
 <script src="js/src/FruitGame.js"></script>
 <script src="js/src/Assets.js"></script>
@@ -94,17 +95,19 @@ video{
 <script src="js/src/Module_blade.js"></script>
 <script src="js/src/Module_ui.js"></script>
 <script src="js/src/Main.js"></script>
+<script src="js/src/ShadowRenderer.js"></script>
 <script src="js/src/HandTracking.js"></script>
 <script type="text/javascript" src="../../src/cv.js"></script> 
 <script type="text/javascript" src="../../src/handtracking.js"></script> 
 </head>
 <body>
 <a id="fork" href="https://github.com/flashhawk" target="_blank"></a>
-<div id="info" style="display:none">Fruit Ninja for HTML5 canvas,Developed using the <a href="https://github.com/flashhawk/spp.js" target="_blank"> spp.js </a>open source engine。<a href="https://github.com/flashhawk/spp.js/tree/master/examples/FruitNinja" target="_blank">source download</a>. Powered with <a href="http://powerbuilder.sh.intel.com/projects/wrt/wiki/WikiStart/PerceptualComputing/GestureDetector/API" target="_blank">Hand Tracking API</a></div>
+<div id="info" style="display:none">Fruit Ninja for HTML5 canvas,Developed using the <a href="https://github.com/flashhawk/spp.js" target="_blank"> spp.js </a>open source engine。<a href="https://github.com/flashhawk/spp.js/tree/master/examples/FruitNinja" target="_blank">source download</a>. Powered with <a href="https://www.w3.org/wiki/Media_Capture_Depth_Stream_Extension" target="_blank">Depth Stream API</a></div>
 <canvas class="canvas" id="bottom" style="display:none">Your borwser does not suport html5 canvans!</canvas>
+<canvas class="canvas" id="shadow" style="display:none">Your borwser does not suport html5 canvans!</canvas>
 <canvas class="canvas" id="middle" style="display:none">Your borwser does not suport html5 canvans!</canvas>
 <canvas class="canvas" id="top" style="display:none">Your borwser does not suport html5 canvans!</canvas>
-<canvas id="canvas" style="width:640px; height:480px; border:1px solid black; display:none" width="640" height="480" style="display:none"></canvas>
+<canvas id="canvas" style="width:320px; height:240px; border:1px solid black; display:none" width="320" height="240" style="display:none"></canvas>
 <div id="loading" style="display:block" ></div>
 <video id="depth" autoplay="true" style="display:none;" src=""></video>
 </body>
