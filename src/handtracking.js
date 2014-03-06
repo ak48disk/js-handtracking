@@ -22,22 +22,23 @@ THE SOFTWARE.
 
 var HT = HT || {};
 
-HT.Tracker = function(params){
+HT.Tracker = function(params) {
   this.params = params || {};
 
   this.mask = new CV.Image();
   this.eroded = new CV.Image();
   this.contours = [];
-  
+
   this.skinner = new HT.Skinner();
+  this.gestureDetector = new HT.GestureDetector(params);
 };
 
-HT.Tracker.prototype.detect = function(image){
+HT.Tracker.prototype.detect = function(image) {
   this.skinner.mask(image, this.mask, this.params.detectObject);
-  
-  if (this.params.fast || true){
+
+  if (this.params.fast || true) {
     this.blackBorder(this.mask);
-  }else{
+  } else {
     CV.erode(this.mask, this.eroded);
     CV.dilate(this.eroded, this.mask);
   }
@@ -46,11 +47,12 @@ HT.Tracker.prototype.detect = function(image){
 
   var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005, image.width, image.height);
   if (candidate) {
-	  candidate.gravity = this.mask.gravity;
-	  candidate.fingerGraph = this.fingerGraph;
-	  candidate.fingers = this.fingers;
-	  candidate.rects = this.mask.rects;
+    candidate.gravity = this.mask.gravity;
+    candidate.fingerGraph = this.fingerGraph;
+    candidate.fingers = this.fingers;
+    candidate.rects = this.mask.rects;
   }
+  this.gestureDetector.onFrame(candidate);
   return candidate;
 };
 
@@ -67,6 +69,8 @@ HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon, width,
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
 
     candidate = new HT.Candidate(contour);
+    candidate.imageWidth = width;
+    candidate.imageHeight = height;
   }
 
   return candidate;
@@ -286,4 +290,124 @@ HT.Skinner.prototype.maskObjectDetect = function (image) {
         }
     }
     return rects;
+}
+
+HT.GestureDetector = function(params) {
+  this.params = params || {};
+  this.eventListeners = {};
+  this.listeners = 0;
+  this.detectors = [
+    new HT.GestureDetector.SwipeDetector(this, "swipeLeft", { x: -1, y: 0 }),
+    new HT.GestureDetector.SwipeDetector(this, "swipeRight", { x: 1, y: 0 }),
+    new HT.GestureDetector.SwipeDetector(this, "swipeUp", { x: 0, y: -1 }),
+    new HT.GestureDetector.SwipeDetector(this, "swipeDown", { x: 0, y: 1 })
+  ];
+}
+
+HT.GestureDetector.prototype.addEventListener = function(event, listener) {
+  this.eventListeners[event] = this.eventListeners[event] || [];
+  if (this.eventListeners[event].indexOf(listener) < 0) {
+    this.eventListeners[event].push(listener);
+    this.listeners++;
+  }
+}
+
+HT.GestureDetector.prototype.removeEventListener = function(event, listener) {
+  if (this.eventListeners[event]) {
+    var index = this.eventListeners[event].indexOf(listener);
+    if (index >= 0) {
+      this.eventListeners[event].splice(index, 1);
+      this.listeners--;
+    }
+  }
+}
+
+HT.GestureDetector.prototype.dispatchEvent = function(event, data) {
+  var arr = this.eventListeners[event];
+  if (arr) {
+    data.target = this;
+    for (var i = 0; i < arr.length; ++i) {
+      arr[i].call(this, data);
+    }
+  }
+}
+
+HT.GestureDetector.prototype.onFrame = function(candidate) {
+  if (this.listeners > 0) {
+    for (var i = 0; i < this.detectors.length; ++i) {
+      this.detectors[i].onFrame(candidate);
+    }
+  }
+}
+
+HT.GestureDetector.Detector = function(parent, name) {
+  this.parent = parent;
+  this.name = name;
+}
+
+HT.GestureDetector.Detector.prototype.trigger = function() {
+  this.parent.dispatchEvent("ongesture", { name: this.name });
+}
+
+HT.GestureDetector.Detector.prototype.onFrame = function(candidate) {
+  //empty
+}
+
+HT.GestureDetector.SwipeDetector = function(parent, name, vector) {
+  HT.GestureDetector.Detector.call(this, parent, name);
+  this.state = "idle";
+  this.history = [];
+  this.historyIndex = 0;
+  this.historyCount = 0;
+  this.maxFrames = 30;
+  this.vector = vector;
+}
+
+HT.GestureDetector.SwipeDetector.prototype = new HT.GestureDetector.Detector();
+HT.GestureDetector.SwipeDetector.prototype.constructor = HT.GestureDetector.SwipeDetector;
+
+HT.GestureDetector.SwipeDetector.prototype.onFrame = function(candidate) {
+  if (this.state == "sleeping") {
+    if (this.sleepFrames++ > 20) {
+      this.state = "idle";
+      return;
+    }
+  }
+  else if (this.state == "idle" && candidate) {
+    this.state = "capture";
+    this.missFrames = 0;
+    this.historyIndex = 0;
+    this.historyCount = 0;
+    this.history = [];
+  }
+  if (this.state == "capture") {
+    if (!candidate || !candidate.fingers || candidate.fingers.length == 0) {
+      if (++this.missFrames > 10) {
+        this.state = "idle";
+        return;
+      }
+    }
+    else {
+      var finger = candidate.fingers[0];
+      var x = this.vector.x * finger.x / candidate.imageWidth;
+      var y = this.vector.y * finger.y / candidate.imageHeight;
+      var position = (x + y) / Math.sqrt(this.vector.x * this.vector.x + this.vector.y * this.vector.y);
+      var currentIndex = this.historyIndex;
+      var prevIndex = this.historyIndex;
+      this.history[this.historyIndex] = position;
+      this.historyIndex = (this.historyIndex + 1) % this.maxFrames;
+      this.historyCount = Math.min(this.maxFrames, this.historyCount + 1);
+      for (var count = 1; count < this.historyCount; ++count) {
+        prevIndex = prevIndex - 1;
+        if (prevIndex < 0)
+          prevIndex = this.maxFrames - 1;
+        if (this.history[currentIndex] - this.history[prevIndex] > 0.7) {
+          this.trigger();
+          this.state = "sleeping";
+          this.sleepFrames = 0;
+          return;
+        }
+      }
+    }
+  }
 }

@@ -33,8 +33,11 @@
 
     DEMO.prototype.start = function() {
       var that = this;
-    
+
       this.tracker = new HT.Tracker();
+      this.tracker.gestureDetector.addEventListener("ongesture", function(event) {
+        document.getElementById("gestures").innerHTML += event.name + "\n";
+      });
 
       this.cbxHull = document.getElementById("cbxHull");
       this.cbxDefects = document.getElementById("cbxDefects");
@@ -48,15 +51,15 @@
 
       this.canvas.width = parseInt(this.canvas.style.width);
       this.canvas.height = parseInt(this.canvas.style.height);
-      
+
       this.image = this.context.createImageData(
         this.canvas.width * 0.2, this.canvas.height * 0.2);
-      
+
       navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
-      if (navigator.getUserMedia){
-	      navigator.getUserMedia({video: {'mandatory': { 'depth': true}}},
-          function(stream){ return that.videoReady(stream); },
-          function(error){ return that.videoError(error); } );
+      if (navigator.getUserMedia) {
+        navigator.getUserMedia({ video: { 'mandatory': { 'depth': true}} },
+          function(stream) { return that.videoReady(stream); },
+          function(error) { return that.videoError(error); });
       }
     };
     
@@ -236,7 +239,8 @@
       <input id="cbxFinger" type="checkbox" checked="checked">Finger Detection
       <input id="cbxObject" type="checkbox">Object Detection
     </div>
-    <a>FPS: </a><a id="fps"></a>
+    <p><a>FPS: </a><a id="fps"></a></p>
+    <p><a id = "gestures"></a></p>
     <div style="margin: 15px;"><strong>Powered by <a href="http://code.google.com/p/js-handtracking/" target="_blank">js-handtracking</a></strong></div>
   </center>
 
