@@ -44,7 +44,7 @@ HT.Tracker.prototype.detect = function(image){
 
   this.contours = CV.findContours(this.mask);
 
-  var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005);
+  var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005, image.width, image.height);
   if (candidate) {
 	  candidate.gravity = this.mask.gravity;
 	  candidate.fingerGraph = this.fingerGraph;
@@ -54,14 +54,14 @@ HT.Tracker.prototype.detect = function(image){
   return candidate;
 };
 
-HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon) {
+HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon, width, height) {
   var contour, candidate;
 
   contour = this.findMaxArea(contours, minSize);
   if (contour) {
     if (this.params.fingers) {
       this.fingerGraph = this.findFingerGraph(contour, this.mask.gravity);
-      this.fingers = this.findFingers(this.fingerGraph);
+      this.fingers = this.findFingers(this.fingerGraph, width, height);
     }
 
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
@@ -142,13 +142,14 @@ HT.Tracker.prototype.findFingerGraph = function(contour, gravity) {
   return d;
 }
 
-HT.Tracker.prototype.findFingers = function(fingerGraph, threshold) {
+HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshold) {
   threshold = threshold || 0.6;
   var flag = 0;
   var pts = 0;
   var max, maxi;
   var result = [];
   var d = fingerGraph;
+  var res = fingerGraph.length;
   for (var i = 0; i < fingerGraph.length; ++i) {
     if (d[i]) {
       if (d[i].value > threshold) {
@@ -170,7 +171,8 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, threshold) {
           result.push({
             x: d[maxi].pt.x,
             y: d[maxi].pt.y,
-            l: d[maxi].value
+            l: d[maxi].value,
+            a: maxi
           });
         }
       }
@@ -181,10 +183,42 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, threshold) {
     result.push({
       x: d[maxi].pt.x,
       y: d[maxi].pt.y,
-      l: d[maxi].value
+      l: d[maxi].value,
+      a: maxi
     });
   }
-  return result.sort(function(a, b) { return b.l-a.l; });
+  //Filter out edge 
+  result = result.filter(function(r) {
+    var thw = width * 0.03;
+    var thh = height * 0.03;
+    if (r.x < thw || r.x > width - thw ||
+        r.y < thh || r.y > height - thh) {
+      return false;
+    }
+    return true;
+  }).sort(function(a, b) { return a.a - b.a });
+
+  var count = 0;
+  var maxcount = 0; maxi = 0;
+  for (var i = 0; i < result.length; ++i) {
+    count = 0;
+    for (var j = i + 1; j < result.length; ++j) {
+      if (result[j].a - result[i].a < res * 0.6) {
+        count++;
+      }
+    }
+    if (count > maxcount) {
+      maxcount = count;
+      maxi = i;
+    }
+  }
+  var result2 = [];
+  for (var j = maxi; j < result.length; ++j) {
+    if (result[j].a - result[maxi].a < res * 0.6) {
+      result2.push(result[j]);
+    }
+  }
+  return result2.sort(function(a, b) { return b.l - a.l; });
 }
 
 HT.Candidate = function(contour){
