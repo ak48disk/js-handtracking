@@ -3,8 +3,6 @@
   <title>Hand Tracking</title>
 
   <script type="text/javascript" src="libs/polyfill.js"></script>
-  <script type="text/javascript" src="../obj/objectdetect.js"></script> 
-  <script type="text/javascript" src="../obj/objectdetect.handopen.js"></script> 
   <script type="text/javascript" src="../src/cv.js"></script> 
   <script type="text/javascript" src="../src/handtracking.js"></script> 
 
@@ -43,7 +41,6 @@
       this.cbxDefects = document.getElementById("cbxDefects");
       this.cbxSkin = document.getElementById("cbxSkin");
       this.cbxFinger = document.getElementById("cbxFinger");
-      this.cbxObject = document.getElementById("cbxObject");
 
       this.video = document.getElementById("video");
       this.canvas = document.getElementById("canvas");
@@ -85,7 +82,6 @@
         image = this.snapshot();
 
         this.tracker.params.fingers = this.cbxFinger.checked;
-        this.tracker.params.detectObject = this.cbxObject.checked;
         candidate = this.tracker.detect(image);
 
         this.draw(candidate);
@@ -237,7 +233,6 @@
       <input id="cbxDefects" type="checkbox">Convexity Defects
       <input id="cbxSkin" type="checkbox" checked="checked">Skin Detection
       <input id="cbxFinger" type="checkbox" checked="checked">Finger Detection
-      <input id="cbxObject" type="checkbox">Object Detection
     </div>
     <p><a>FPS: </a><a id="fps"></a></p>
     <p><a id = "gestures"></a></p>

@@ -34,7 +34,7 @@ HT.Tracker = function(params) {
 };
 
 HT.Tracker.prototype.detect = function(image) {
-  this.skinner.mask(image, this.mask, this.params.detectObject);
+  this.skinner.mask(image, this.mask);
 
   if (this.params.fast || true) {
     this.blackBorder(this.mask);
@@ -235,7 +235,7 @@ HT.Skinner = function(params){
   this.params = params || {depthThreshold: 100};
 };
 
-HT.Skinner.prototype.mask = function(imageSrc, imageDst, detectObjects){
+HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   var src = imageSrc.data, dst = imageDst.data, len = src.length,
       i = 0, j = 0,
       r, g, b, h, s, v, value;
@@ -266,31 +266,8 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst, detectObjects){
 	  x : gravity_x,
 	  y : gravity_y
 	};
-  if (detectObjects)
-    imageDst.rects = this.maskObjectDetect(imageDst);
   return imageDst;
 };
-
-HT.Skinner.prototype.maskObjectDetect = function (image) {
-    var data = image.data, width = image.width, height = image.height;
-//    objectdetect.equalizeHistogram(data);
-    var sat = objectdetect.computeSat(data, width, height);
-    var ssat = objectdetect.computeSquaredSat(data, width, height);
-    var rsat = objectdetect.computeRsat(data, width, height);
-    var rects = objectdetect.detectMultiScale(sat, rsat, ssat, undefined, width, height, objectdetect.handopen, 1.1 /*options.scaleFactor*/, 3 /*options.scaleMin*/);
-    rects = objectdetect.groupRectangles(rects, 1).sort(function (rect) { return rect[2] * rects[3]; });
-
-    if (rects && rects.length > 0) {
-        var rect = rects[0];
-        var imin = rect[0] + rect[1] * width;
-        var imax = imin + rect[2] + rect[3] * width;
-        for (var i = 0; i < data.length; ++i) {
-            if (i < imin || i > imax)
-                data[i] = 0;
-        }
-    }
-    return rects;
-}
 
 HT.GestureDetector = function(params) {
   this.params = params || {};
