@@ -64,6 +64,9 @@ HT.Tracker.prototype.detectMultiple = function(image) {
   if (candidates && candidates.length == 1) {
     this.gestureDetector.onFrame(candidates[0]);
   }
+  else {
+    this.gestureDetector.onFrame();
+  }
   return candidates;
 }
 
@@ -247,7 +250,7 @@ HT.Tracker.prototype.findFingerGraph = function(contour, gravity) {
 }
 
 HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshold) {
-  threshold = threshold || 0.6;
+  threshold = threshold || 0.55;
   var flag = 0;
   var pts = 0;
   var max, maxi;
@@ -377,7 +380,8 @@ HT.GestureDetector = function(params) {
     new HT.GestureDetector.SwipeDetector(this, "swipeLeft", { x: -1, y: 0 }),
     new HT.GestureDetector.SwipeDetector(this, "swipeRight", { x: 1, y: 0 }),
     new HT.GestureDetector.SwipeDetector(this, "swipeUp", { x: 0, y: -1 }),
-    new HT.GestureDetector.SwipeDetector(this, "swipeDown", { x: 0, y: 1 })
+    new HT.GestureDetector.SwipeDetector(this, "swipeDown", { x: 0, y: 1 }),
+    new HT.GestureDetector.NudgeDetector(this, "nudge")
   ];
 }
 
@@ -484,6 +488,90 @@ HT.GestureDetector.SwipeDetector.prototype.onFrame = function(candidate) {
           this.sleepFrames = 0;
           return;
         }
+      }
+    }
+  }
+}
+
+HT.GestureDetector.NudgeDetector = function(parent, name) {
+  HT.GestureDetector.Detector.call(this, parent, name);
+  this.state = "idle";
+  this.history = [];
+  this.historyIndex = 0;
+  this.historyCount = 0;
+  this.maxFrames = 10;
+}
+
+HT.GestureDetector.NudgeDetector.prototype = new HT.GestureDetector.Detector();
+HT.GestureDetector.NudgeDetector.prototype.constructor = HT.GestureDetector.SwipeDetector;
+
+HT.GestureDetector.NudgeDetector.prototype.onFrame = function(candidate) {
+  if (this.state == "idle" && candidate) {
+    this.state = "capture";
+    this.missFrames = 0;
+    this.historyIndex = 0;
+    this.historyCount = 0;
+    this.history = [];
+  }
+  if (this.state == "capture" || this.state == "wait_for_removal") {
+    if (!candidate || !candidate.fingers || candidate.fingers.length == 0) {
+      if (++this.missFrames > 5) {
+        this.state = "idle";
+        return;
+      }
+    } else {
+      var fingers = candidate.fingers;
+      if (fingers && fingers.length > 0) {
+        var prevIndex = this.historyIndex;
+        for (var count = 0; count < this.historyCount; ++count) {
+          prevIndex = prevIndex - 1;
+          if (prevIndex < 0)
+            prevIndex = this.maxFrames - 1;
+          var curr = this.history[prevIndex];
+          var threshold;
+          if (this.state == "wait_for_removal")
+            threshold = 15;
+          else
+            threshold = 7;
+          var cnt = 0;
+          for (var f = 0; f < fingers.length; ++f) {
+            var x = fingers[f].x;
+            var y = fingers[f].y;
+            if (Math.sqrt((curr.x - x) * (curr.x - x) + (curr.y - y) * (curr.y - y)) < threshold) {
+              cnt++;
+            }
+          }
+          if (this.state == "capture" && cnt == 1) {
+            this.trigger();
+            this.state = "wait_for_removal";
+            this.removalFrames = 0;
+          }
+          if (cnt > 0) return;
+          if (++this.removalFrames > 3 && this.state == "wait_for_removal") {
+            this.parent.dispatchEvent("ongesture", { name: "I" });
+            this.state = "idle";
+            return;
+          }
+        }
+        if (fingers.length > 1) {
+          //find two closest fingers
+          var x, y, closest = Infinity;
+          for (var i = 0; i < fingers.length; ++i) {
+            for (var j = i + 1; j < fingers.length; ++j) {
+              var dx = fingers[i].x - fingers[j].x;
+              var dy = fingers[i].y - fingers[j].y;
+              var dist = dx * dx + dy * dy;
+              if (dist < closest) {
+                dist = closest;
+                x = (fingers[i].x + fingers[j].x) * 0.5;
+                y = (fingers[i].y + fingers[j].y) * 0.5;
+              }
+            }
+          } //outer for
+          this.history[this.historyIndex] = { x: x, y: y };
+          this.historyIndex = (this.historyIndex + 1) % this.maxFrames;
+          this.historyCount = Math.min(this.maxFrames, this.historyCount + 1);
+        } // if
       }
     }
   }
