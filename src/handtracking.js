@@ -50,11 +50,22 @@ HT.Tracker.prototype.detect = function(image) {
     candidate.gravity = this.mask.gravity;
     candidate.fingerGraph = this.fingerGraph;
     candidate.fingers = this.fingers;
-    candidate.rects = this.mask.rects;
   }
   this.gestureDetector.onFrame(candidate);
   return candidate;
 };
+
+HT.Tracker.prototype.detectMultiple = function(image) {
+  this.skinner.mask(image, this.mask);
+  this.blackBorder(this.mask);
+  this.contours = CV.findContours(this.mask);
+
+  var candidates = this.findCandidates(this.mask, this.contours, image.width * image.height * 0.05, 0.005);
+  if (candidates && candidates.length == 1) {
+    this.gestureDetector.onFrame(candidates[0]);
+  }
+  return candidates;
+}
 
 HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon, width, height) {
   var contour, candidate;
@@ -75,6 +86,95 @@ HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon, width,
 
   return candidate;
 };
+
+HT.Tracker.prototype.findCandidates = function(image, contours, minSize, epsilon) {
+  contours = this.findSuitableContours(contours, minSize);
+  var candidates = [], candidate;
+  for (var i = 0; i < contours.length; ++i) {
+    var contour = contours[i];
+    candidate = new HT.Candidate(contour);
+    candidate.imageWidth = image.width;
+    candidate.imageHeight = image.height;
+
+    if (this.params.fingers) {
+      candidate.gravity = this.findGravity(image, contour);
+      candidate.fingerGraph = this.findFingerGraph(contour, candidate.gravity);
+      candidate.fingers = this.findFingers(candidate.fingerGraph, image.width, image.height);
+    }
+
+    contour = CV.approxPolyDP(contour, contour.length * epsilon);
+
+    candidates.push(candidate);
+  }
+  return candidates;
+}
+
+
+HT.Tracker.prototype.findGravity = function(image, contour) {
+  var i = 1, xmin, ymin, xmax, ymax;
+  var width = image.width;
+  var x, y, img = image.data;
+  if (contour.length > 0) {
+    xmin = xmax = contour[0].x;
+    ymin = ymax = contour[0].y;
+  }
+  else {
+    return;
+  }
+  for (; i < contour.length; ++i) {
+    x = contour[i].x;
+    if (x < xmin) {
+      xmin = x;
+    }
+    if (x > xmax) {
+      xmax = x;
+    }
+
+    y = contour[i].y;
+    if (y < ymin) {
+      ymin = y;
+    }
+    if (y > ymax) {
+      ymax = y;
+    }
+  }
+  var pos, gravity_x = 0, gravity_y = 0, pts = 0;
+
+  for (y = ymin; y < ymax; ++y) {
+    pos = y * width + xmin;
+    for (x = xmin; x < xmax; ++x) {
+      if (img[pos] > 0) {
+        gravity_x += x;
+        gravity_y += y;
+        pts++;
+      }
+      ++pos;
+    }
+  }
+
+  return {
+    x: gravity_x / pts,
+    y: gravity_y / pts
+  };
+}
+
+HT.Tracker.prototype.findSuitableContours = function(contours, minSize) {
+  var retVal = [];
+  var maxArea = -Infinity, area;
+  for (var i = 0; i < contours.length; ++i) {
+    area = CV.area(contours[i]);
+    contours[i].area = area;
+    if (area >= minSize && area > maxArea) {
+      maxArea = area;
+    }
+  }
+  for (var i = 0; i < contours.length; ++i) {
+    if (contours[i].area >= maxArea * 0.5 && contours[i].area >= minSize) {
+      retVal.push(contours[i]);
+    }
+  }
+  return retVal;
+}
 
 HT.Tracker.prototype.findMaxArea = function(contours, minSize){
   var len = contours.length, i = 0,

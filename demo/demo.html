@@ -82,7 +82,7 @@
         image = this.snapshot();
 
         this.tracker.params.fingers = this.cbxFinger.checked;
-        candidate = this.tracker.detect(image);
+        candidate = this.tracker.detectMultiple(image);
 
         this.draw(candidate);
         this.computeFPS();
@@ -95,65 +95,68 @@
       return this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
     };
 
-    DEMO.prototype.draw = function(candidate) {
-      if (candidate) {
+    DEMO.prototype.draw = function(candidates) {
+      for (var k = 0; k < candidates.length; ++k) {
+        var candidate = candidates[k];
+        if (candidate) {
 
-        if (this.cbxHull.checked) {
-          this.drawHull(candidate.hull, "red");
-        }
+          if (this.cbxHull.checked) {
+            this.drawHull(candidate.hull, "red");
+          }
 
-        if (this.cbxDefects.checked) {
-          this.drawDefects(candidate.defects, "blue");
-        }
+          if (this.cbxDefects.checked) {
+            this.drawDefects(candidate.defects, "blue");
+          }
 
-        this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
+          this.context.fillText("o", candidate.gravity.x, candidate.gravity.y);
 
-        var fingerGraph = candidate.fingerGraph;
-        var fingers = candidate.fingers; ;
+          var fingerGraph = candidate.fingerGraph;
+          var fingers = candidate.fingers; ;
 
-        if (this.cbxFinger.checked && fingerGraph) {
-          this.context.save();
-          this.context.strokeStyle = "rgb(255,255,255)";
+          if (this.cbxFinger.checked && fingerGraph) {
+            this.context.save();
+            this.context.strokeStyle = "rgb(255,255,255)";
 
-          this.context.beginPath();
-          this.context.moveTo(0, 100);
-          for (var i = 0; i < fingerGraph.length; ++i) {
-            if (fingerGraph[i]) {
-              this.context.lineTo(i / fingerGraph.length * 150, 100 - fingerGraph[i].value * 90);
+            this.context.beginPath();
+            this.context.moveTo(0, 100);
+            for (var i = 0; i < fingerGraph.length; ++i) {
+              if (fingerGraph[i]) {
+                this.context.lineTo(i / fingerGraph.length * 150, 100 - fingerGraph[i].value * 90);
+              }
+            }
+            this.context.stroke();
+            this.context.fillStyle = "rgb(255,0,0)";
+            for (var i = 0; i < fingers.length; ++i) {
+              this.context.fillText("p", fingers[i].x, fingers[i].y);
+            }
+            this.context.restore();
+          }
+          var rects = candidate.rects;
+
+          if (rects) {
+            var ctx = this.context;
+            ctx.save();
+            ctx.strokeStyle = "rgb(255,255,255)";
+            for (var i = 0; i < rects.length; ++i) {
+              var r = rects[i];
+              var x = r[0], y = r[1], w = r[2], h = r[3];
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(x, y + h);
+              ctx.lineTo(x + w, y + h);
+              ctx.lineTo(x + w, y);
+              ctx.lineTo(x, y);
+              ctx.stroke();
             }
           }
-          this.context.stroke();
-          this.context.fillStyle = "rgb(255,0,0)";
-          for (var i = 0; i < fingers.length; ++i) {
-            this.context.fillText("p", fingers[i].x, fingers[i].y);
-          }
-          this.context.restore();
-        }
-        var rects = candidate.rects;
 
-        if (rects) {
-          var ctx = this.context;
-          ctx.save();
-          ctx.strokeStyle = "rgb(255,255,255)";
-          for (var i = 0; i < rects.length; ++i) {
-            var r = rects[i];
-            var x = r[0], y = r[1], w = r[2], h = r[3];
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y + h);
-            ctx.lineTo(x + w, y + h);
-            ctx.lineTo(x + w, y);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-          }
         }
-
-      }
-      if (this.cbxSkin.checked) {
-        this.context.putImageData(
+        if (this.cbxSkin.checked) {
+          this.context.putImageData(
           this.createImage(this.tracker.mask, this.image),
           this.canvas.width - this.image.width,
           this.canvas.height - this.image.height);
+        }
       }
     };
     
