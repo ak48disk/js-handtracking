@@ -250,7 +250,7 @@ HT.Tracker.prototype.findFingerGraph = function(contour, gravity) {
 }
 
 HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshold) {
-  threshold = threshold || 0.55;
+  threshold = threshold || 0.6;
   var flag = 0;
   var pts = 0;
   var max, maxi;
@@ -548,7 +548,6 @@ HT.GestureDetector.NudgeDetector.prototype.onFrame = function(candidate) {
           }
           if (cnt > 0) return;
           if (++this.removalFrames > 3 && this.state == "wait_for_removal") {
-            this.parent.dispatchEvent("ongesture", { name: "I" });
             this.state = "idle";
             return;
           }
