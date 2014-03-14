@@ -45,7 +45,7 @@ HT.Tracker.prototype.detect = function(image) {
 
   this.contours = CV.findContours(this.mask);
 
-  var candidate = this.findCandidate(this.contours, image.width * image.height * 0.05, 0.005, image.width, image.height);
+  var candidate = this.findCandidate(this.mask, this.contours, image.width * image.height * 0.05, 0.005);
   if (candidate) {
     candidate.gravity = this.mask.gravity;
     candidate.fingerGraph = this.fingerGraph;
@@ -70,21 +70,21 @@ HT.Tracker.prototype.detectMultiple = function(image) {
   return candidates;
 }
 
-HT.Tracker.prototype.findCandidate = function(contours, minSize, epsilon, width, height) {
+HT.Tracker.prototype.findCandidate = function(image,contours, minSize, epsilon) {
   var contour, candidate;
 
   contour = this.findMaxArea(contours, minSize);
   if (contour) {
     if (this.params.fingers) {
-      this.fingerGraph = this.findFingerGraph(contour, this.mask.gravity);
-      this.fingers = this.findFingers(this.fingerGraph, width, height);
+      this.fingerGraph = this.findFingerGraph(contour, this.mask.gravity, image);
+      this.fingers = this.findFingers(this.fingerGraph, image.width, image.height);
     }
 
     contour = CV.approxPolyDP(contour, contour.length * epsilon);
 
     candidate = new HT.Candidate(contour);
-    candidate.imageWidth = width;
-    candidate.imageHeight = height;
+    candidate.imageWidth = image.width;
+    candidate.imageHeight = image.height;
   }
 
   return candidate;
@@ -101,7 +101,7 @@ HT.Tracker.prototype.findCandidates = function(image, contours, minSize, epsilon
 
     if (this.params.fingers) {
       candidate.gravity = this.findGravity(image, contour);
-      candidate.fingerGraph = this.findFingerGraph(contour, candidate.gravity);
+      candidate.fingerGraph = this.findFingerGraph(contour, candidate.gravity, image);
       candidate.fingers = this.findFingers(candidate.fingerGraph, image.width, image.height);
     }
 
@@ -220,23 +220,26 @@ HT.Tracker.prototype.blackBorder = function(image){
 };
 
 
-HT.Tracker.prototype.findFingerGraph = function(contour, gravity) {
+HT.Tracker.prototype.findFingerGraph = function(contour, gravity, image) {
   var d = [];
   var res = 500;
   var gx = gravity.x, gy = gravity.y;
   var len = contour.length, maxd = 0, mind = 10000;
-
+  var img = image.origin.data;
+  var gz = img[4 * (~ ~gx + ~ ~gy * image.width)];
   for (var i = 0; i < len; ++i) {
     var pt = contour[i];
     var dx = pt.x - gx;
     var dy = pt.y - gy;
-    var dl = Math.sqrt(dx * dx + dy * dy);
+    var pz = img[4 * (~ ~pt.x + ~ ~pt.y * image.width)];
+    var dz = 20 * ~ ~((pt - gz) / 20);
+    var dl = Math.sqrt(dx * dx + dy * dy + dz * dz);
     var deg = Math.acos(dx / dl);
     if (dy < 0) deg = -deg;
     var index = ~ ~((deg / Math.PI / 2 + 0.5) * res);
     if (!d[index] || d[index].value < dl) {
       d[index] = { value: dl, pt: pt };
-    } 
+    }
     maxd = Math.max(dl, maxd);
     mind = Math.min(dl, mind);
   }
@@ -257,6 +260,7 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshol
   var result = [];
   var d = fingerGraph;
   var res = fingerGraph.length;
+  var lastA = -Infinity;
   for (var i = 0; i < fingerGraph.length; ++i) {
     if (d[i]) {
       if (d[i].value > threshold) {
@@ -275,12 +279,15 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshol
       else {
         if (flag) {
           flag = false;
-          result.push({
-            x: d[maxi].pt.x,
-            y: d[maxi].pt.y,
-            l: d[maxi].value,
-            a: maxi
-          });
+          if (maxi - lastA > 5) {
+            lastA = maxi;
+            result.push({
+              x: d[maxi].pt.x,
+              y: d[maxi].pt.y,
+              l: d[maxi].value,
+              a: maxi
+            });
+          }
         }
       }
     }
@@ -310,7 +317,7 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshol
   for (var i = 0; i < result.length; ++i) {
     count = 0;
     for (var j = i + 1; j < result.length; ++j) {
-      if (result[j].a - result[i].a < res * 0.6) {
+      if (result[j].a - result[i].a < res * 0.5) {
         count++;
       }
     }
@@ -321,7 +328,7 @@ HT.Tracker.prototype.findFingers = function(fingerGraph, width, height, threshol
   }
   var result2 = [];
   for (var j = maxi; j < result.length; ++j) {
-    if (result[j].a - result[maxi].a < res * 0.6) {
+    if (result[j].a - result[maxi].a < res * 0.5) {
       result2.push(result[j]);
     }
   }
@@ -338,27 +345,27 @@ HT.Skinner = function(params){
   this.params = params || {depthThreshold: 100};
 };
 
-HT.Skinner.prototype.mask = function(imageSrc, imageDst){
+HT.Skinner.prototype.mask = function(imageSrc, imageDst) {
   var src = imageSrc.data, dst = imageDst.data, len = src.length,
       i = 0, j = 0,
       r, g, b, h, s, v, value;
   var gravity_x = 0, gravity_y = 0;
   var pts = 0;
   var width = imageSrc.width;
-  for(; i < len; i += 4){
+  for (; i < len; i += 4) {
     v = src[i];
     value = 0;
 
-    if (v >= this.params.depthThreshold){
-        value = 255;
-	      var x = j % width;
-	      var y = j / width;
-	      gravity_x += x;
-	      gravity_y += y;
-	      pts ++;
+    if (v >= this.params.depthThreshold) {
+      value = 255;
+      var x = j % width;
+      var y = j / width;
+      gravity_x += x;
+      gravity_y += y;
+      pts++;
     }
-    
-    dst[j ++] = value;
+
+    dst[j++] = value;
   }
   gravity_x = gravity_x / pts;
   gravity_y = gravity_y / pts;
@@ -366,9 +373,10 @@ HT.Skinner.prototype.mask = function(imageSrc, imageDst){
   imageDst.width = imageSrc.width;
   imageDst.height = imageSrc.height;
   imageDst.gravity = {
-	  x : gravity_x,
-	  y : gravity_y
-	};
+    x: gravity_x,
+    y: gravity_y
+  };
+  imageDst.origin = imageSrc;
   return imageDst;
 };
 
@@ -532,7 +540,7 @@ HT.GestureDetector.NudgeDetector.prototype.onFrame = function(candidate) {
           if (this.state == "wait_for_removal")
             threshold = 15;
           else
-            threshold = 7;
+            threshold = 8;
           var cnt = 0;
           for (var f = 0; f < fingers.length; ++f) {
             var x = fingers[f].x;
